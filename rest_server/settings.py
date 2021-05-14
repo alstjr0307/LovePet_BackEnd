@@ -45,6 +45,7 @@ ALLOWED_HOSTS = ['13.125.62.90', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,7 +55,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_swagger',
     'django_filters',
-    'member',
+    'member','hitcount',
+    'knox',
+    'taggit.apps.TaggitAppConfig',
+    'taggit_templatetags2',
+    'taggit_serializer',
+    'rest_framework.authtoken',
+    'djoser',
 ]
 
 MIDDLEWARE = [
@@ -137,6 +144,15 @@ USE_L10N = True
 
 USE_TZ = True
 
+SERVER_EMAIL= 'django@my-domain.com'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'alswp26@gmail.com'
+EMAIL_HOST_PASSWORD = 'alstjr0307!!'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend',)
+
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
@@ -145,7 +161,21 @@ STATIC_URL = '/static/'
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
 
-    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',)
-   
+    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
 
+}
+
+DJOSER = {
+    "SEND_ACTIVATION_EMAIL": True,
+    'SERIALIZERS': {
+        'user_create': 'member.api.UserRegistrationSerializer'
+    },
+    'ACTIVATION_URL': 'auth/users/activate/{uid}/{token}',
 }

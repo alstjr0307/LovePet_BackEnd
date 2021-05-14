@@ -6,7 +6,7 @@
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
-
+from taggit.managers import TaggableManager
 
 class AuthGroup(models.Model):
     name = models.CharField(unique=True, max_length=150)
@@ -41,10 +41,10 @@ class AuthUser(models.Model):
     password = models.CharField(max_length=128)
     last_login = models.DateTimeField(blank=True, null=True)
     is_superuser = models.IntegerField()
-    username = models.CharField(unique=True, max_length=150)
-    first_name = models.CharField(max_length=150)
+    username = models.CharField(unique=True, max_length=10)
+    first_name = models.CharField(max_length=10, unique=True)
     last_name = models.CharField(max_length=150)
-    email = models.CharField(max_length=254)
+    email = models.CharField(max_length=254, unique=True)
     is_staff = models.IntegerField()
     is_active = models.IntegerField()
     date_joined = models.DateTimeField()
@@ -78,8 +78,8 @@ class BlogPostcomment(models.Model):
     content = models.TextField()
     created = models.DateTimeField()
     updated = models.DateTimeField()
-    blogpost_connected = models.ForeignKey('BlogPosts', models.DO_NOTHING)
-    writer = models.ForeignKey(AuthUser, models.DO_NOTHING)
+    blogpost_connected = models.ForeignKey('BlogPosts', on_delete = models.CASCADE)
+    writer = models.ForeignKey(AuthUser, on_delete = models.CASCADE)
 
     class Meta:
         managed = False
@@ -94,18 +94,20 @@ class BlogPosts(models.Model):
     create_dt = models.DateTimeField()
     modify_dt = models.DateTimeField()
     category = models.CharField(max_length=1)
-    owner = models.ForeignKey(AxxxxxzxuthUser, models.DO_NOTHING, blank=True, null=True)
-    
+    owner = models.ForeignKey(AuthUser, on_delete = models.CASCADE, blank=True, null=True)
+    tags = TaggableManager(blank=True)
 
+    def get_tags_display(self):
+        return self.tags.values_list('name', flat=True)
+     
     class Meta:
         managed = False
         db_table = 'blog_posts'
-        
 
 
 class BlogPostsLikes(models.Model):
-    post = models.ForeignKey(BlogPosts, models.DO_NOTHING)
-    user = models.ForeignKey(AuthUser, models.DO_NOTHING)
+    post = models.ForeignKey(BlogPosts, on_delete = models.CASCADE)
+    user = models.ForeignKey(AuthUser, on_delete = models.CASCADE)
 
     class Meta:
         managed = False
@@ -149,7 +151,7 @@ class DjangoMigrations(models.Model):
 
 class TaggitTag(models.Model):
     name = models.CharField(unique=True, max_length=100)
-    slug = models.CharField(unique=True, max_length=100)
+    slug = models.CharField(unique=False, max_length=100, default='none')
 
     class Meta:
         managed = False
@@ -157,11 +159,32 @@ class TaggitTag(models.Model):
 
 
 class TaggitTaggeditem(models.Model):
-    object_id = models.IntegerField()
-    content_type = models.ForeignKey(DjangoContentType, models.DO_NOTHING)
-    tag = models.ForeignKey(TaggitTag, models.DO_NOTHING)
+    content_type = models.ForeignKey(DjangoContentType, on_delete = models.CASCADE)
+    tag = models.ForeignKey(TaggitTag, on_delete = models.CASCADE)
+    object = models.ForeignKey(BlogPosts, on_delete = models.CASCADE)
 
     class Meta:
         managed = False
         db_table = 'taggit_taggeditem'
         unique_together = (('content_type', 'object_id', 'tag'),)
+
+class HitcountHit(models.Model) :
+    object_pk= models.IntegerField()
+    content_type_id = models.IntegerField()
+    modified = models.DateTimeField()
+    hits = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = 'hitcount_hit_count'
+
+class HitcountHitcount(models.Model) :
+    ip = models.CharField(max_length=40)
+    session = models.CharField(max_length = 40)
+    user_agent = models.CharField(max_length = 255)
+    hitcount = models.ForeignKey(HitcountHit, on_delete= models.CASCADE)
+    user = models.ForeignKey(AuthUser, on_delete=models.CASCADE)
+
+    class Meta:
+        managed = False
+        db_table = 'hitcount_hit'
