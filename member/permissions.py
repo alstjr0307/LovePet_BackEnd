@@ -14,11 +14,11 @@ class PostIsUserOrReadOnly(BasePermission):
 class AuthUserIsAdminUserOrReadOnly(BasePermission):
 
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated
+        return True
 
     # for object level permissions
     def has_object_permission(self, request, view, obj):
-        return obj.id == request.user.id
+        return request.user.id == obj.id
 
 class PostCommentIsUserOrReadOnly(BasePermission):
     def has_object_permission(self, request, view, obj):
@@ -32,4 +32,10 @@ class PostLikesIsUserOrReadOnly(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return obj.user.id == request.user.id
+        
+class TagIsUserOrReadOnly(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        return obj.object.owner == request.user
         

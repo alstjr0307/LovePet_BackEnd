@@ -16,8 +16,17 @@ from django.contrib.messages import constants as messages_constants
 from django.contrib.messages import constants as messages
 from django.core.exceptions import ImproperlyConfigured
 import json
+import firebase_admin
+from firebase_admin import credentials
+
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+cred_path = os.path.join(BASE_DIR, "serviceAccountKey.json")
+cred = credentials.Certificate(cred_path)
+firebase_admin.initialize_app(cred)
 
 secret_file = os.path.join(BASE_DIR, "secrets.json")
 with open(secret_file) as f:
@@ -62,6 +71,16 @@ INSTALLED_APPS = [
     'taggit_serializer',
     'rest_framework.authtoken',
     'djoser',
+    'rest_auth',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'rest_auth.registration',
+    'push_notification',
+    # provider
+    'allauth.socialaccount.providers.kakao',
+
 ]
 
 MIDDLEWARE = [
@@ -79,7 +98,7 @@ ROOT_URLCONF = 'rest_server.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR,"templates")],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -146,18 +165,17 @@ USE_TZ = True
 
 SERVER_EMAIL= 'django@my-domain.com'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = 'alswp26@gmail.com'
+EMAIL_HOST_USER = 'tofustock@gmail.com'
 EMAIL_HOST_PASSWORD = 'alstjr0307!!'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend',)
-
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
 
@@ -173,9 +191,14 @@ REST_FRAMEWORK = {
 }
 
 DJOSER = {
-    "SEND_ACTIVATION_EMAIL": True,
+    "SEND_ACTIVATION_EMAIL": False,
+    'PERMISSIONS': {
+		'activation': ['rest_framework.permissions.AllowAny'],
+	},
     'SERIALIZERS': {
         'user_create': 'member.api.UserRegistrationSerializer'
     },
     'ACTIVATION_URL': 'auth/users/activate/{uid}/{token}',
 }
+SITE_ID=1
+FCM_APIKEY = "AAAAQ5V5t5g:APA91bHBM7LdQ1fjQOchQEf4FPNSMzs_-buTHkNKor8Qn50O6sf5piz-V1dPe2qYZCB4JmxR2z4ZdTKJIZl9XxhKaq4trx9m9mNuOxn0IyoL0blYwKUGtV8kfnmMBPwwz5M3LG50qN0m"

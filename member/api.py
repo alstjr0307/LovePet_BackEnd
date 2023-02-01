@@ -1,5 +1,5 @@
 from django.db.models.fields import CharField
-from .models import AuthUser, BlogPostcomment, BlogPosts, BlogPostsLikes,HitcountHit, HitcountHitcount, DjangoAdminLog, DjangoContentType, DjangoMigrations, TaggitTaggeditem,TaggitTag
+from .models import AuthUser, BlogPostcomment, BlogPosts, BlogPostsLikes,HitcountHit, HitcountHitcount, DjangoAdminLog, DjangoContentType, DjangoMigrations, TaggitTaggeditem,TaggitTag,Question,Choice
 from rest_framework import serializers, viewsets, filters, status
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -18,12 +18,27 @@ from django.http import Http404
 from taggit_serializer.serializers import TagListSerializerField, TaggitSerializer
 from taggit.models import Tag
 from django.db.models import Q
-from .permissions import PostIsUserOrReadOnly, AuthUserIsAdminUserOrReadOnly, PostCommentIsUserOrReadOnly, PostLikesIsUserOrReadOnly, ReadOnly
+from .permissions import PostIsUserOrReadOnly, AuthUserIsAdminUserOrReadOnly, PostCommentIsUserOrReadOnly, TagIsUserOrReadOnly,PostLikesIsUserOrReadOnly, ReadOnly, TagIsUserOrReadOnly
 from djoser.serializers import UserCreateSerializer as BaseUserRegistrationSerializer
+from django.shortcuts import render
 
-
-
-
+from pyfcm import FCMNotification
+ 
+APIKEY = "AAAAQ5V5t5g:APA91bHBM7LdQ1fjQOchQEf4FPNSMzs_-buTHkNKor8Qn50O6sf5piz-V1dPe2qYZCB4JmxR2z4ZdTKJIZl9XxhKaq4trx9m9mNuOxn0IyoL0blYwKUGtV8kfnmMBPwwz5M3LG50qN0m"
+push_service = FCMNotification(APIKEY)
+ 
+def sendMessage(body, title, token):
+    # 메시지 (data 타입)
+    data_message = {
+        "body": body,
+        "title": title
+    }
+ 
+    # 토큰값을 이용해 1명에게 푸시알림을 전송함
+    result = push_service.single_device_data_message(registration_id=token, data_message=data_message)
+ 
+    # 전송 결과 출력
+    print(result)
 class UserRegistrationSerializer(BaseUserRegistrationSerializer):
 
 
@@ -78,6 +93,7 @@ class TagViewSet(viewsets.ModelViewSet):
     """
     queryset = Tag.objects.all().order_by('name')
     serializer_class = MyTagSerializer
+
 class AccommodationFilter(filters.FilterSet):
     id_in = NumberInFilter(field_name='id', lookup_expr='in')
     likess=filters.NumberFilter(field_name = 'postlike', lookup_expr='gt')
@@ -115,7 +131,8 @@ class AuthUserViewSet(viewsets.ModelViewSet):
     queryset =AuthUser.objects.all()
     serializer_class = AuthUserSerializer
     permission_classes = [AuthUserIsAdminUserOrReadOnly]
-
+    filter_backends = [DjangoFilterBackend]
+    filter_fields =('username',)
 
 class BlogPostcommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='writer.first_name')
@@ -184,7 +201,7 @@ class TaggitTaggeditemViewSet(viewsets.ModelViewSet):
     filter_class = TagFilter
     filter_fields =('tag',)
     permission_classes = [
-        ReadOnly
+        TagIsUserOrReadOnly
     ]
     
 
@@ -240,6 +257,40 @@ class BlogPostsViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+class BlogPostsListSerializer(TaggitSerializer, serializers.ModelSerializer): #게시물 리스트만
+    writer = serializers.ReadOnlyField(source='owner.first_name')
+   
+    likes = serializers.SerializerMethodField()
+    comment = serializers.SerializerMethodField()
+   
+    def get_likes(self, post):
+        qs = BlogPostsLikes.objects.filter(post=post).count()
+        return qs
+    def get_comment(self, post):
+        return BlogPostcomment.objects.filter(blogpost_connected=post).count()
+
+    class Meta:
+        model = BlogPosts
+        fields = ['id', 'writer', 'likes', 'comment', 'title', 'create_dt', 'category', 'owner']
+    
+
+class BlogPostsListViewSet(viewsets.ModelViewSet):
+    queryset = BlogPosts.objects.order_by('-create_dt').all().annotate(postlike=Coalesce(Subquery(
+        BlogPostsLikes.objects.filter(post=OuterRef('pk')).values('post').annotate(count=Count('pk')).values('count')
+    ),0))
+    serializer_class = BlogPostsListSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filter_class = AccommodationFilter
+    pagination_class = PostPageNumberPagination
+    permission_classes = [
+        PostIsUserOrReadOnly
+    ]
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class DjangoAdminLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = DjangoAdminLog
@@ -266,7 +317,6 @@ class DjangoMigrationsViewSet(viewsets.ModelViewSet):
 
 
 
-
 class HitcountHitcountSerializer(serializers.ModelSerializer):  
 
     class Meta:
@@ -287,3 +337,27 @@ class HitcountHitSerializer(serializers.ModelSerializer):
 class HitcountHitViewSet(viewsets.ModelViewSet):
     queryset= HitcountHit.objects.all()
     serializer_class=HitcountHitSerializer
+
+def Agreeview(request):
+  return render(request,"agree.html")
+class VoteSerializer(serializers.ModelSerializer):
+    call_count  = serializers.IntegerField(
+        source = 'call.count',
+        read_only=True
+    )
+    foot_count = serializers.IntegerField(
+        source='foot.count',
+        read_only=True
+
+    )
+
+    class Meta:
+        model = Choice
+        fields= '__all__'
+
+class VoteViewSet(viewsets.ModelViewSet):
+    queryset = Choice.objects.all()
+    serializer_class= VoteSerializer
+    filter_backends = [DjangoFilterBackend]
+    filter_fields=['pub_date']
+    permission_classes = [AuthUserIsAdminUserOrReadOnly]

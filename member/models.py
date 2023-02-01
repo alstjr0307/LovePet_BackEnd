@@ -5,6 +5,8 @@
 #   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
+from datetime import timezone
+import datetime
 from django.db import models
 from taggit.managers import TaggableManager
 
@@ -96,6 +98,7 @@ class BlogPosts(models.Model):
     category = models.CharField(max_length=1)
     owner = models.ForeignKey(AuthUser, on_delete = models.CASCADE, blank=True, null=True)
     tags = TaggableManager(blank=True)
+    pushtoken= models.CharField(max_length=200,blank=True, default='00')
 
     def get_tags_display(self):
         return self.tags.values_list('name', flat=True)
@@ -188,3 +191,22 @@ class HitcountHitcount(models.Model) :
     class Meta:
         managed = False
         db_table = 'hitcount_hit'
+class Question(models.Model):
+    question_text = models.CharField(max_length=200)
+    pub_date = models.CharField(max_length=30)
+
+    def __str__(self):
+        return self.pub_date
+
+    def was_published_recently(self):
+        now = timezone.now()
+        return now - datetime.timedelta(days=1) <= self.pub_date <= now
+
+# Create your models here.
+class Choice(models.Model):
+    pub_date = models.CharField(max_length=30,default = datetime.datetime.now().strftime('%y-%m-%d'))
+
+    call = models.ManyToManyField(AuthUser,related_name='call',blank=True)
+    foot = models.ManyToManyField(AuthUser,related_name='foot',blank=True)
+    def __str__(self):
+        return self.pub_date
